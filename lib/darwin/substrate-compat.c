@@ -2,6 +2,7 @@
 #include "substitute-internal.h"
 #include <os/log.h>
 #include <mach-o/dyld.h>
+#include "execmem.h"
 
 EXPORT
 void *SubGetImageByName(const char *filename) __asm__("SubGetImageByName");
@@ -54,6 +55,24 @@ void SubHookFunction(void *symbol, void *replace, void **result) {
                          substitute_strerror(ret));
     }
 }
+
+EXPORT
+void SubHookMemory(void *target, const void *data, size_t size)
+    __asm__("SubHookMemory");
+
+void SubHookMemory(void *target, const void *data, size_t size) {
+    if (target == NULL || data == NULL) {
+        substitute_panic("SubHookMemory: called with a NULL pointer. Don't do that.\n");
+    }
+    struct execmem_foreign_write write = {target, data, size};
+    int ret = execmem_foreign_write_with_pc_patch(&write, 1, NULL, NULL);
+
+    if (ret) {
+        substitute_panic("SubHookMemory: execmem_foreign_write_with_pc_patch returned %s\n",
+                         substitute_strerror(ret));
+    }
+}
+
 #endif
 
 EXPORT
